@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dot Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { min-height: 100%; }
+  body {
+    background: #000;
+    color: #fff;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 32px;
+  }
+
+  #canvas-column {
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  #input-panel {
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  #title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .title-main {
+    font-size: 13px;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .title-sub {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.2;
+  }
+
+  .canvas-rule {
+    width: 100%;
+    height: 1px;
+    background: #222;
+  }
+
+  #canvas-wrap {
+    width: 240px;
+    height: 240px;
+    background: transparent;
+    box-shadow: none;
+    cursor: crosshair;
+    line-height: 0;
+  }
+
+  #grid-svg {
+    display: block;
+    width: 240px;
+    height: 240px;
+    user-select: none;
+  }
+
+  #toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+  }
+
+  button {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font: inherit;
+    padding: 4px 0;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  button::before {
+    content: '› ';
+    color: #444;
+  }
+
+  button:hover::before {
+    color: #fff;
+  }
+
+  button:hover {
+    color: #fff;
+  }
+
+  .panel-label {
+    color: #888;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .input-label {
+    color: #888;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+
+  .input-field {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #333;
+    color: #fff;
+    font: inherit;
+    padding: 4px 0;
+    width: 100%;
+    outline: none;
+  }
+
+  .input-field::placeholder {
+    color: #555;
+  }
+
+  .input-field:focus {
+    border-bottom-color: #fff;
+  }
+
+  #status {
+    color: #444;
+    font-size: 11px;
+    line-height: 1.4;
+    min-height: 1.4em;
+  }
+
+  #gif-bg-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #gif-bg-color {
+    width: 32px;
+    height: 20px;
+    background: transparent;
+    border: 1px solid #333;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  #gif-bg-color::-webkit-color-swatch-wrapper { padding: 2px; }
+  #gif-bg-color::-webkit-color-swatch { border: none; }
+
+  #gallery {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .saved-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+  }
+
+  .saved-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: #fff;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .saved-name::before {
+    content: '› ';
+    color: #444;
+  }
+
+  .saved-item:hover .saved-name::before {
+    color: #fff;
+  }
+
+  .saved-name-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #fff;
+    color: #fff;
+    font: inherit;
+    padding: 0;
+    outline: none;
+  }
+
+  .saved-act {
+    color: #444;
+    cursor: pointer;
+    font-size: 12px;
+    flex: 0 0 auto;
+    visibility: hidden;
+  }
+
+  .saved-item:hover .saved-act {
+    visibility: visible;
+  }
+
+  .saved-act:hover {
+    color: #fff;
+  }
+
+  .saved-act.del:hover {
+    color: var(--red, #ff2118);
+  }
+
+  #gallery-empty {
+    color: #555;
+  }
+
+  #status-line {
+    color: #444;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-column">
+    <div id="title-block">
+      <div class="title-main">morphing matrix</div>
+      <div class="title-sub">12×12 · 240px circular</div>
+    </div>
+
+    <div class="canvas-rule"></div>
+    <div id="canvas-wrap">
+      <svg id="grid-svg" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+
+      <defs>
+        <filter id="blob-filter"
+            x="-20%" y="-20%" width="140%" height="140%"
+            color-interpolation-filters="sRGB">
+          <feMorphology id="f-morph" operator="dilate" radius="1.5" />
+          <feGaussianBlur id="f-blur" stdDeviation="3.5" />
+          <feColorMatrix id="f-matrix" type="matrix"
+            values="1 0 0 0 0
+          0 1 0 0 0
+          0 0 1 0 0
+          0 0 0 22 -10" />
+        </filter>
+      </defs>
+
+        <rect id="layer-bg" width="240" height="240" fill="#000" />
+
+        <rect id="hover-rect"
+          width="16" height="16"
+          fill="#999" fill-opacity="0.18"
+          pointer-events="none"
+          style="display:none" />
+
+        <g id="reference-grid">
+          <g id="layer-dots"></g>
+          <g id="layer-grid"></g>
+        </g>
+
+        <g id="layer-blob" filter="url(#blob-filter)"></g>
+
+        <circle id="lcd-boundary" cx="120" cy="120" r="119" stroke="#fff" stroke-width="0.75" fill="none" />
+
+  </svg>
+</div>
+    <div class="canvas-rule"></div>
+
+    <div id="toolbar">
+      <button id="btn-clear">clear</button>
+      <button id="btn-toggle-grid">hide grid</button>
+      <button id="btn-save">save</button>
+      <button id="btn-export-png">export png</button>
+      <button id="btn-export">export svg</button>
+    </div>
+
+    <div id="status-line">0 cells active · 0 in bounds</div>
+  </div>
+
+  <aside id="input-panel">
+    <div class="panel-label">INPUTS</div>
+    <div>
+      <div class="input-label">environment</div>
+      <input id="input-environment" class="input-field" placeholder="e.g. basketball gym" />
+    </div>
+    <div>
+      <div class="input-label">air quality</div>
+      <input id="input-air-quality" class="input-field" placeholder="e.g. poor" />
+    </div>
+    <div>
+      <div class="input-label">gemini api key</div>
+      <input id="input-api-key" class="input-field" type="password" placeholder="AIza… or AQ.…" autocomplete="off" />
+    </div>
+
+    <button id="btn-generate" onclick="generate()">generate</button>
+    <div id="status">ready</div>
+
+    <div class="panel-label" style="margin-top:8px">SAVED</div>
+    <div id="gif-bg-row">
+      <span class="input-label">gif bg</span>
+      <input type="color" id="gif-bg-color" value="#000000" />
+    </div>
+    <div id="gallery"></div>
+    <div id="gallery-empty" class="input-label">nothing saved yet</div>
+  </aside>
+</div>
+
+<script>
+// ── Tunables ──────────────────────────────────────────────────────────────────
+const GRID_SIZE           = 12;
+const CANVAS_PADDING      = 24;
+const GRID_AREA           = 240 - 2 * CANVAS_PADDING;
+const CELL_SIZE           = GRID_AREA / GRID_SIZE;
+
+const BG_COLOR            = '#000';
+const BLOB_COLOR          = '#fff';
+const CIRCLE_FILL         = 'none';
+const CIRCLE_STROKE_COLOR = '#333';
+const GRID_COLOR          = '#333';
+const OUT_OF_BOUNDS_COLOR = '#0a0a0a';
+
+const BLOB_CELL_SIZE      = 14;
+const BLOB_DILATE         = 1.5;
+const BLOB_BLUR           = 4;
+const BLOB_THRESHOLD_A    = 22;
+const BLOB_THRESHOLD_B    = -10;
+
+const GRID_STROKE         = 0.5;
+const CIRCLE_STROKE_WIDTH = 0.5;
+
+// ── Grid constants ────────────────────────────────────────────────────────────
+const COLS = GRID_SIZE, ROWS = GRID_SIZE, CELL = CELL_SIZE;
+const WHITE_CIRCLE_RADIUS = CELL / 2;
+
+function isCellInsideScreen(row, col) {
+  const cx = CANVAS_PADDING + (col + 0.5) * CELL;
+  const cy = CANVAS_PADDING + (row + 0.5) * CELL;
+  const dx = cx - 120, dy = cy - 120;
+  return Math.sqrt(dx*dx + dy*dy) <= 120;
+}
+
+function isCellFullyInsideScreen(row, col) {
+  const x0 = CANVAS_PADDING + col * CELL;
+  const y0 = CANVAS_PADDING + row * CELL;
+  const x1 = x0 + CELL, y1 = y0 + CELL;
+  return [[x0,y0],[x1,y0],[x0,y1],[x1,y1]].every(([x, y]) => {
+    const dx = x - 120, dy = y - 120;
+    return Math.sqrt(dx*dx + dy*dy) <= 120;
+  });
+}
+
+const NS = 'http://www.w3.org/2000/svg';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const cells    = new Array(GRID_SIZE * GRID_SIZE).fill(false);
+let isDragging = false;
+let paintState = true;
+let hoveredIdx = -1;
+let gridVisible = true;
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const svg           = document.getElementById('grid-svg');
+const layerGrid     = document.getElementById('layer-grid');
+const layerBlob     = document.getElementById('layer-blob');
+const layerDots     = document.getElementById('layer-dots');
+const hoverRect     = document.getElementById('hover-rect');
+const btnClear      = document.getElementById('btn-clear');
+const btnToggleGrid = document.getElementById('btn-toggle-grid');
+const btnExport     = document.getElementById('btn-export');
+const btnExportPng  = document.getElementById('btn-export-png');
+const btnSave       = document.getElementById('btn-save');
+const gifBgColor    = document.getElementById('gif-bg-color');
+const galleryEl     = document.getElementById('gallery');
+const galleryEmpty  = document.getElementById('gallery-empty');
+const statusLine    = document.getElementById('status-line');
+const referenceGrid = document.getElementById('reference-grid');
+
+// Precompute valid indices (cells fully inside circle)
+const VALID_INDICES = Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => {
+  const row = Math.floor(i / COLS), col = i % COLS;
+  return isCellFullyInsideScreen(row, col) ? i : -1;
+}).filter(i => i >= 0);
+
+// ── Init tunables into SVG elements ──────────────────────────────────────────
+document.getElementById('canvas-wrap').style.background = BG_COLOR;
+document.getElementById('lcd-boundary').setAttribute('stroke', '#fff');
+document.getElementById('f-morph').setAttribute('radius', BLOB_DILATE);
+document.getElementById('f-blur').setAttribute('stdDeviation', BLOB_BLUR);
+document.getElementById('f-matrix').setAttribute('values',
+  `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${BLOB_THRESHOLD_A} ${BLOB_THRESHOLD_B}`);
+
+hoverRect.setAttribute('width', CELL);
+hoverRect.setAttribute('height', CELL);
+
+// ── Build static grid ─────────────────────────────────────────────────────────
+for (let row = 0; row < ROWS; row++) {
+  for (let col = 0; col < COLS; col++) {
+    const x = CANVAS_PADDING + col * CELL;
+    const y = CANVAS_PADDING + row * CELL;
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', x); r.setAttribute('y', y);
+    r.setAttribute('width', CELL); r.setAttribute('height', CELL);
+    if (isCellFullyInsideScreen(row, col)) {
+      r.setAttribute('fill', 'none');
+      r.setAttribute('stroke', GRID_COLOR);
+      r.setAttribute('stroke-width', GRID_STROKE);
+    } else if (!isCellInsideScreen(row, col)) {
+      r.setAttribute('fill', OUT_OF_BOUNDS_COLOR);
+      r.setAttribute('stroke', 'none');
+    } else {
+      r.setAttribute('fill', 'none');
+      r.setAttribute('stroke', 'none');
+    }
+    layerGrid.appendChild(r);
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  let blob = '', dots = '';
+
+  for (let i = 0; i < cells.length; i++) {
+    const row = Math.floor(i / COLS), col = i % COLS;
+    if (!isCellFullyInsideScreen(row, col)) continue;
+    const cx = CANVAS_PADDING + col * CELL + CELL / 2;
+    const cy = CANVAS_PADDING + row * CELL + CELL / 2;
+
+    dots += `<circle cx="${cx}" cy="${cy}" r="${WHITE_CIRCLE_RADIUS}" fill="${CIRCLE_FILL}" stroke="${CIRCLE_STROKE_COLOR}" stroke-width="${CIRCLE_STROKE_WIDTH}"/>`;
+
+    if (cells[i]) {
+      const x = cx - BLOB_CELL_SIZE / 2;
+      const y = cy - BLOB_CELL_SIZE / 2;
+      blob += `<rect x="${x}" y="${y}" width="${BLOB_CELL_SIZE}" height="${BLOB_CELL_SIZE}" fill="${BLOB_COLOR}"/>`;
+    }
+  }
+
+  layerBlob.innerHTML = blob;
+  layerDots.innerHTML = dots;
+  updateStatus();
+}
+
+function updateStatus() {
+  const activeCount = cells.filter(Boolean).length;
+  const inBoundsCount = VALID_INDICES.length;
+  statusLine.textContent = `${activeCount} cells active · ${inBoundsCount} in bounds`;
+}
+
+
+// ── Coordinate helper ─────────────────────────────────────────────────────────
+function idxFromEvent(e) {
+  const rect = svg.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (240 / rect.width);
+  const y = (e.clientY - rect.top)  * (240 / rect.height);
+  const col = Math.floor((x - CANVAS_PADDING) / CELL);
+  const row = Math.floor((y - CANVAS_PADDING) / CELL);
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return -1;
+  return row * COLS + col;
+}
+
+// ── Mouse events ──────────────────────────────────────────────────────────────
+svg.addEventListener('mousedown', e => {
+  e.preventDefault();
+  const idx = idxFromEvent(e);
+  if (idx < 0) return;
+  const row = Math.floor(idx / COLS), col = idx % COLS;
+  if (!isCellFullyInsideScreen(row, col)) return;
+  paintState = e.shiftKey ? false : !cells[idx];
+  cells[idx] = paintState;
+  render();
+  isDragging = true;
+});
+
+svg.addEventListener('mousemove', e => {
+  const idx = idxFromEvent(e);
+
+  if (idx !== hoveredIdx) {
+    hoveredIdx = idx;
+    if (idx >= 0) {
+      const row = Math.floor(idx / COLS), col = idx % COLS;
+      if (isCellFullyInsideScreen(row, col)) {
+        hoverRect.setAttribute('x', CANVAS_PADDING + col * CELL);
+        hoverRect.setAttribute('y', CANVAS_PADDING + row * CELL);
+        hoverRect.style.display = '';
+      } else {
+        hoverRect.style.display = 'none';
+      }
+    } else {
+      hoverRect.style.display = 'none';
+    }
+  }
+
+  if (isDragging && idx >= 0) {
+    const row = Math.floor(idx / COLS), col = idx % COLS;
+    if (isCellFullyInsideScreen(row, col) && cells[idx] !== paintState) {
+      cells[idx] = paintState;
+      render();
+    }
+  }
+});
+
+svg.addEventListener('mouseleave', () => {
+  hoverRect.style.display = 'none';
+  hoveredIdx = -1;
+});
+
+window.addEventListener('mouseup',   () => { isDragging = false; });
+window.addEventListener('dragstart', e  => e.preventDefault());
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+btnClear.addEventListener('click', () => { cells.fill(false); render(); });
+
+btnToggleGrid.addEventListener('click', () => {
+  gridVisible = !gridVisible;
+  referenceGrid.style.display = gridVisible ? '' : 'none';
+  btnToggleGrid.textContent = gridVisible ? 'hide grid' : 'show grid';
+});
+
+// ── Export ────────────────────────────────────────────────────────────────────
+// Builds a standalone SVG of ONLY the white illustration, already carrying the
+// morphed (blob) effect — no grid, dots, boundary or background (transparent).
+function buildIllustrationSVG() {
+  const doc = document.createElementNS(NS, 'svg');
+  doc.setAttribute('xmlns', NS);
+  doc.setAttribute('viewBox', '0 0 240 240');
+  doc.setAttribute('width', 240);
+  doc.setAttribute('height', 240);
+  // defs carry the blob filter; the group references it → morphed white shape
+  doc.appendChild(svg.querySelector('defs').cloneNode(true));
+  doc.appendChild(layerBlob.cloneNode(true));
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+         new XMLSerializer().serializeToString(doc);
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// SVG export — true vector, but relies on the viewer supporting SVG filters
+btnExport.addEventListener('click', () => {
+  if (layerBlob.children.length === 0) {
+    setStatus('nothing to export — draw or generate first', '#c66');
+    return;
+  }
+  triggerDownload(new Blob([buildIllustrationSVG()], { type: 'image/svg+xml' }),
+                  `morphing-matrix-${Date.now()}.svg`);
+});
+
+// PNG export — rasterises exactly what the browser renders, so the morphed
+// effect is baked into the pixels. Reliable in any image viewer.
+const PNG_SCALE = 4;   // 240 → 960px output
+btnExportPng.addEventListener('click', () => {
+  if (layerBlob.children.length === 0) {
+    setStatus('nothing to export — draw or generate first', '#c66');
+    return;
+  }
+  setStatus('rendering png...', '#888');
+
+  const svgBlob = new Blob([buildIllustrationSVG()], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240 * PNG_SCALE;
+    canvas.height = 240 * PNG_SCALE;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(blob => {
+      if (!blob) { setStatus('error: png render failed', '#c66'); return; }
+      triggerDownload(blob, `morphing-matrix-${Date.now()}.png`);
+      setStatus('png exported', '#fff');
+    }, 'image/png');
+  };
+
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    setStatus('error: png render failed', '#c66');
+  };
+
+  img.src = url;
+});
+
+// ── Saved illustrations (localStorage) ────────────────────────────────────────
+const STORAGE_KEY = 'morphing-matrix-saved';
+const API_KEY_STORAGE = 'gemini-api-key';
+const GEMINI_MODEL_STORAGE = 'gemini-model';
+const ANIM_STEP_MS = 130;  // delay between dots in the on-screen replay (ms)
+let animToken = 0;         // bumps to cancel an in-flight animation
+
+// GIF export of the reveal animation
+const GIF_SIZE = 240;       // px, output gif dimensions
+const GIF_FRAME_DELAY = 13; // 1/100s per revealed dot (~130ms, matches replay)
+const GIF_END_HOLD = 150;   // 1/100s hold on the final frame before it loops
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
+function loadSaved() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function persistSaved(list) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+  catch (e) { console.error('save failed:', e); }
+}
+
+function activeIndices() {
+  const out = [];
+  for (let i = 0; i < cells.length; i++) if (cells[i]) out.push(i);
+  return out;
+}
+
+function distFromCenter(i) {
+  const row = Math.floor(i / COLS), col = i % COLS;
+  const cx = CANVAS_PADDING + col * CELL + CELL / 2;
+  const cy = CANVAS_PADDING + row * CELL + CELL / 2;
+  return Math.hypot(cx - 120, cy - 120);
+}
+
+// Order dots reveal from the centre outwards (shared by replay + gif)
+function revealOrder(indices) {
+  return [...indices].sort((a, b) => distFromCenter(a) - distFromCenter(b));
+}
+
+// Next default name: img1, img2, … (highest existing imgN + 1)
+function nextDefaultName(list) {
+  let max = 0;
+  for (const s of list) {
+    const m = /^img(\d+)$/.exec(s.name || '');
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return 'img' + (max + 1);
+}
+
+function renderGallery() {
+  const list = loadSaved();
+  galleryEl.innerHTML = '';
+  galleryEmpty.style.display = list.length ? 'none' : '';
+
+  for (const item of list) {
+    const row = document.createElement('div');
+    row.className = 'saved-item';
+
+    const name = document.createElement('span');
+    name.className = 'saved-name';
+    name.textContent = item.name || '(unnamed)';
+    name.title = 'click to replay dot by dot';
+    name.addEventListener('click', () => playAnimation(item.cells));
+
+    const gif = document.createElement('span');
+    gif.className = 'saved-act';
+    gif.textContent = 'gif';
+    gif.title = 'export reveal animation as gif';
+    gif.addEventListener('click', () => exportGif(item));
+
+    const edit = document.createElement('span');
+    edit.className = 'saved-act';
+    edit.textContent = 'rename';
+    edit.title = 'rename';
+    edit.addEventListener('click', () => startRename(item, row, name));
+
+    const del = document.createElement('span');
+    del.className = 'saved-act del';
+    del.textContent = '×';
+    del.title = 'delete';
+    del.addEventListener('click', () => {
+      persistSaved(loadSaved().filter(s => s.id !== item.id));
+      renderGallery();
+    });
+
+    row.append(name, gif, edit, del);
+    galleryEl.appendChild(row);
+  }
+}
+
+// Inline rename: swap the name label for a text input
+function startRename(item, row, nameEl) {
+  const input = document.createElement('input');
+  input.className = 'saved-name-input';
+  input.value = item.name || '';
+  row.replaceChild(input, nameEl);
+  input.focus();
+  input.select();
+
+  let done = false;
+  const commit = save => {
+    if (done) return;
+    done = true;
+    if (save) {
+      const v = input.value.trim();
+      if (v) {
+        const list = loadSaved();
+        const target = list.find(s => s.id === item.id);
+        if (target) { target.name = v; persistSaved(list); }
+      }
+    }
+    renderGallery();
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') commit(true);
+    else if (e.key === 'Escape') commit(false);
+  });
+  input.addEventListener('blur', () => commit(true));
+}
+
+// Replay a saved pattern dot by dot, radiating out from the centre
+function playAnimation(indices) {
+  const token = ++animToken;
+  isDragging = false;
+  cells.fill(false);
+  render();
+
+  const order = revealOrder(indices);
+  let k = 0;
+  (function tick() {
+    if (token !== animToken) return;          // superseded / cancelled
+    if (k >= order.length) return;
+    cells[order[k]] = true;
+    render();
+    k++;
+    setTimeout(tick, ANIM_STEP_MS);
+  })();
+}
+
+// ── GIF export of the reveal animation ────────────────────────────────────────
+// Standalone GIF89a encoder (no external libraries) so it works offline too.
+
+// Build an SVG showing only the given cells, morphed, as white coverage over
+// black. The chosen background colour is applied later via the gif palette,
+// so the soft anti-aliased edges are preserved for any background.
+function buildFrameSVG(subset) {
+  let rects = '';
+  for (const i of subset) {
+    const row = Math.floor(i / COLS), col = i % COLS;
+    const cx = CANVAS_PADDING + col * CELL + CELL / 2;
+    const cy = CANVAS_PADDING + row * CELL + CELL / 2;
+    const x = cx - BLOB_CELL_SIZE / 2, y = cy - BLOB_CELL_SIZE / 2;
+    rects += `<rect x="${x}" y="${y}" width="${BLOB_CELL_SIZE}" height="${BLOB_CELL_SIZE}" fill="${BLOB_COLOR}"/>`;
+  }
+  const defs = new XMLSerializer().serializeToString(svg.querySelector('defs'));
+  return `<svg xmlns="${NS}" viewBox="0 0 240 240" width="${GIF_SIZE}" height="${GIF_SIZE}">`
+       + defs
+       + `<rect width="240" height="240" fill="#000"/>`
+       + `<g filter="url(#blob-filter)">${rects}</g></svg>`;
+}
+
+// Rasterise a frame SVG → coverage index array (one byte per pixel).
+// The white shape over black yields a grayscale value = how much the shape
+// covers that pixel (0 = background, 255 = full shape). This becomes the
+// palette index; the palette maps 0→bg colour, 255→white with a soft ramp.
+function rasterizeFrame(svgText) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = GIF_SIZE; c.height = GIF_SIZE;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, GIF_SIZE, GIF_SIZE);
+      URL.revokeObjectURL(url);
+      const d = ctx.getImageData(0, 0, GIF_SIZE, GIF_SIZE).data;
+      const idx = new Uint8Array(GIF_SIZE * GIF_SIZE);
+      for (let p = 0, q = 0; p < d.length; p += 4, q++) {
+        const a = d[p + 3] / 255;
+        idx[q] = (0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2]) * a | 0;
+      }
+      resolve(idx);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('frame render failed')); };
+    img.src = url;
+  });
+}
+
+// LSB-first bit packer for GIF LZW codes
+function makeBitWriter() {
+  const bytes = [];
+  let cur = 0, bits = 0;
+  return {
+    write(code, len) {
+      cur |= code << bits;
+      bits += len;
+      while (bits >= 8) { bytes.push(cur & 0xff); cur >>>= 8; bits -= 8; }
+    },
+    flush() { if (bits > 0) { bytes.push(cur & 0xff); cur = 0; bits = 0; } return bytes; }
+  };
+}
+
+// GIF-variant LZW compression of an index stream
+function lzwEncode(minCodeSize, data) {
+  const clearCode = 1 << minCodeSize;
+  const eoiCode = clearCode + 1;
+  const bw = makeBitWriter();
+  let dict, next, codeSize;
+  const init = () => { dict = new Map(); next = eoiCode + 1; codeSize = minCodeSize + 1; };
+
+  init();
+  bw.write(clearCode, codeSize);
+  let prefix = data[0];
+  for (let i = 1; i < data.length; i++) {
+    const k = data[i];
+    const key = prefix * 256 + k;         // prefix code (≤4095) combined with pixel (0..255)
+    if (dict.has(key)) {
+      prefix = dict.get(key);
+    } else {
+      bw.write(prefix, codeSize);
+      if (next < 4096) {
+        dict.set(key, next);
+        next++;
+        // Widen codes when next EXCEEDS the current range. The decoder adds
+        // table entries one code later than the encoder, so this must be ">"
+        // (not "==="), otherwise the streams desync once the dictionary grows.
+        if (next > (1 << codeSize) && codeSize < 12) codeSize++;
+      } else {
+        bw.write(clearCode, codeSize);
+        init();
+      }
+      prefix = k;
+    }
+  }
+  bw.write(prefix, codeSize);
+  bw.write(eoiCode, codeSize);
+  return bw.flush();
+}
+
+// Assemble the full GIF89a file from coverage-index frames. The colour table
+// is a soft ramp from the chosen background colour (index 0) to white
+// (index 255), so anti-aliased edges blend smoothly into that background.
+function buildGif(frames, size, bg) {
+  const out = [];
+  const push = (...b) => { for (const x of b) out.push(x & 0xff); };
+  const pushStr = s => { for (let i = 0; i < s.length; i++) out.push(s.charCodeAt(i)); };
+  const push16 = v => { out.push(v & 0xff, (v >> 8) & 0xff); };
+
+  pushStr('GIF89a');
+  push16(size); push16(size);
+  push(0xF7);       // GCT present, 8-bit colour, 256-entry table
+  push(0);          // background colour index → palette[0] = chosen bg
+  push(0);          // pixel aspect ratio
+  for (let i = 0; i < 256; i++) {          // ramp: bg → white
+    const t = i / 255;
+    push(Math.round(bg[0] + (255 - bg[0]) * t),
+         Math.round(bg[1] + (255 - bg[1]) * t),
+         Math.round(bg[2] + (255 - bg[2]) * t));
+  }
+
+  // loop forever
+  push(0x21, 0xFF, 0x0B);
+  pushStr('NETSCAPE2.0');
+  push(0x03, 0x01); push16(0); push(0x00);
+
+  for (let f = 0; f < frames.length; f++) {
+    const delay = (f === frames.length - 1) ? GIF_END_HOLD : GIF_FRAME_DELAY;
+    push(0x21, 0xF9, 0x04, 0x00); push16(delay); push(0x00, 0x00);  // graphic control
+    push(0x2C); push16(0); push16(0); push16(size); push16(size); push(0x00); // image descriptor
+
+    push(8);   // LZW minimum code size
+    const lzw = lzwEncode(8, frames[f]);
+    for (let i = 0; i < lzw.length; i += 255) {
+      const n = Math.min(255, lzw.length - i);
+      push(n);
+      for (let j = 0; j < n; j++) push(lzw[i + j]);
+    }
+    push(0x00); // block terminator
+  }
+  push(0x3B);   // trailer
+  return new Uint8Array(out);
+}
+
+let gifBusy = false;
+async function exportGif(item) {
+  if (gifBusy) return;
+  const cellsArr = item.cells || [];
+  if (cellsArr.length === 0) { setStatus('nothing to animate', '#c66'); return; }
+
+  gifBusy = true;
+  const bgHex = gifBgColor.value;
+  const bg = hexToRgb(bgHex);
+  try {
+    const order = revealOrder(cellsArr);
+    const frames = [];
+    for (let k = 1; k <= order.length; k++) {
+      setStatus(`rendering gif ${k}/${order.length}...`, '#888');
+      frames.push(await rasterizeFrame(buildFrameSVG(order.slice(0, k))));
+    }
+    setStatus('encoding gif...', '#888');
+    const bytes = buildGif(frames, GIF_SIZE, bg);
+    triggerDownload(new Blob([bytes], { type: 'image/gif' }), `${item.name || 'illustration'}.gif`);
+    setStatus(`gif exported · ${frames.length} frames · bg ${bgHex}`, '#fff');
+  } catch (e) {
+    console.error('gif export failed:', e);
+    setStatus('error: gif export failed', '#c66');
+  } finally {
+    gifBusy = false;
+  }
+}
+
+btnSave.addEventListener('click', () => {
+  const active = activeIndices();
+  if (active.length === 0) {
+    setStatus('nothing to save — draw or generate first', '#c66');
+    return;
+  }
+  const list = loadSaved();
+  const name = nextDefaultName(list);
+  list.push({ id: Date.now(), name, cells: active, createdAt: Date.now() });
+  persistSaved(list);
+  renderGallery();
+  setStatus(`saved as ${name} · ${active.length} cells`, '#fff');
+});
+
+renderGallery();
+
+// Restore a previously entered API key (stored locally, this browser only)
+try {
+  const savedKey = localStorage.getItem(API_KEY_STORAGE);
+  if (savedKey) document.getElementById('input-api-key').value = savedKey;
+} catch {}
+
+// ── AI generation ─────────────────────────────────────────────────────────────
+// fetch that aborts after `ms` so the UI never hangs forever
+async function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function geminiCall(apiKey, model, body) {
+  return fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify(body)
+  }, 60000);
+}
+
+// Ask Google which models this key can use, then pick a fast (flash) one.
+// Avoids hard-coding a model name that may be retired for new users.
+async function resolveGeminiModel(apiKey) {
+  const r = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models", {
+    headers: { "x-goog-api-key": apiKey }
+  }, 30000);
+  if (!r.ok) { console.error('models list failed:', r.status, await r.text().catch(()=> '')); return null; }
+  const data = await r.json();
+  const usable = (data.models || [])
+    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map(m => (m.name || '').replace(/^models\//, ''))
+    .filter(Boolean);
+  return usable.find(n => /flash-latest/i.test(n))
+    || usable.find(n => /flash/i.test(n) && !/(exp|preview|thinking|vision|lite|image|tts|audio)/i.test(n))
+    || usable.find(n => /flash/i.test(n))
+    || usable[0]
+    || null;
+}
+
+async function generate() {
+  const environment = document.getElementById('input-environment').value.trim();
+  const airQuality  = document.getElementById('input-air-quality').value.trim();
+  const apiKey      = document.getElementById('input-api-key').value.trim();
+
+  if (!apiKey) {
+    setStatus('error: enter your Gemini API key', '#c66');
+    return;
+  }
+  if (!environment || !airQuality) {
+    setStatus('error: fill both fields', '#c66');
+    return;
+  }
+
+  // Remember the key locally so it doesn't need re-entering (this browser only)
+  try { localStorage.setItem(API_KEY_STORAGE, apiKey); } catch {}
+
+  setStatus('generating...', '#888');
+
+  const validIndices = [];
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      if (isCellFullyInsideScreen(row, col)) {
+        validIndices.push(row * COLS + col);
+      }
+    }
+  }
+
+  const promptText = `You are generating a pixel illustration on a 12x12 grid (144 cells, indices 0-143, row-major order — index = row * 12 + col).
+
+The grid is circular: only cells whose entire square fits within an inscribed circle are valid. Valid cell indices are: [${validIndices.join(', ')}]
+
+Generate a pattern of active cells that forms a SINGLE coherent spatial illustration representing the COMBINATION of:
+- Environment: ${environment}
+- Air quality: ${airQuality}
+
+Lay the shapes out across the grid so they read as one scene that metaphorically merges both inputs — not two separate icons side by side. Use rounded, organic shapes suited to a smooth dot-matrix display. Aim for 20-60 active cells. Only use indices from the valid list.`;
+
+  const requestBody = {
+    contents: [{ parts: [{ text: promptText }] }],
+    // Force a valid JSON response matching this shape
+    generationConfig: {
+      responseMimeType: "application/json",
+      maxOutputTokens: 8192,
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          cells: { type: "ARRAY", items: { type: "INTEGER" } }
+        },
+        required: ["cells"]
+      }
+    }
+  };
+
+  try {
+    let model = localStorage.getItem(GEMINI_MODEL_STORAGE);
+    if (!model) {
+      setStatus('finding a model...', '#888');
+      model = await resolveGeminiModel(apiKey);
+      if (!model) { setStatus('error: no usable Gemini model for this key', '#c66'); return; }
+      try { localStorage.setItem(GEMINI_MODEL_STORAGE, model); } catch {}
+    }
+
+    console.log('gemini model:', model);
+    setStatus('generating...', '#888');
+    let response = await geminiCall(apiKey, model, requestBody);
+
+    // Cached model retired / not available? Re-discover once and retry.
+    if (response.status === 404) {
+      try { localStorage.removeItem(GEMINI_MODEL_STORAGE); } catch {}
+      const fresh = await resolveGeminiModel(apiKey);
+      if (fresh) {
+        try { localStorage.setItem(GEMINI_MODEL_STORAGE, fresh); } catch {}
+        response = await geminiCall(apiKey, fresh, requestBody);
+      }
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      setStatus(`error: API ${response.status}: ${errorText.slice(0, 120)}`, '#c66');
+      console.error('API error:', response.status, errorText);
+      return;
+    }
+
+    const data = await response.json();
+    console.log('API response:', data);
+
+    const blockReason = data.promptFeedback && data.promptFeedback.blockReason;
+    if (blockReason) {
+      setStatus(`error: request blocked (${blockReason})`, '#c66');
+      return;
+    }
+
+    const candidate = data.candidates && data.candidates[0];
+    const rawText = candidate && candidate.content && candidate.content.parts
+      && candidate.content.parts.map(p => p.text || '').join('');
+    if (!rawText) {
+      const reason = candidate && candidate.finishReason ? ` (${candidate.finishReason})` : '';
+      setStatus(`error: empty response${reason}`, '#c66');
+      return;
+    }
+
+    const parsed = JSON.parse(rawText);
+    if (!parsed.cells || !Array.isArray(parsed.cells)) {
+      setStatus('error: invalid response format', '#c66');
+      return;
+    }
+
+    const validSet = new Set(validIndices);
+    cells.fill(false);
+    let activeCount = 0;
+    for (const idx of parsed.cells) {
+      if (validSet.has(idx)) {
+        cells[idx] = true;
+        activeCount++;
+      }
+    }
+
+    render();
+    setStatus(`done · ${activeCount} cells active`, '#fff');
+
+  } catch (err) {
+    console.error('Generate error:', err);
+    const msg = err.name === 'AbortError'
+      ? 'timed out — try again, or check the key / network'
+      : err.message;
+    setStatus(`error: ${msg}`, '#c66');
+  }
+}
+
+function setStatus(text, color) {
+  const el = document.getElementById('status');
+  if (el) {
+    el.textContent = text;
+    el.style.color = color;
+  }
+}
+
+// ── Enter support on inputs ───────────────────────────────────────────────────
+document.getElementById('input-environment').addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+document.getElementById('input-air-quality').addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
