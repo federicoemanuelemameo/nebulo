@@ -981,18 +981,35 @@ function geminiCall(apiKey, model, body) {
   }, 60000);
 }
 
-// Ask Google which models this key can use, then pick a fast (flash) one.
-// Avoids hard-coding a model name that may be retired for new users.
-async function resolveGeminiModel(apiKey) {
+// 503 means the model is overloaded right now: wait a little and try again
+async function geminiCallWithRetry(apiKey, model, body) {
+  let response = await geminiCall(apiKey, model, body);
+  for (const delay of [2000, 5000]) {
+    if (response.status !== 503) break;
+    setStatus('gemini is busy, retrying...', '#888');
+    await new Promise(resolve => setTimeout(resolve, delay));
+    response = await geminiCall(apiKey, model, body);
+  }
+  return response;
+}
+
+// Every model this key can use for text generation
+async function listGeminiModels(apiKey) {
   const r = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models", {
     headers: { "x-goog-api-key": apiKey }
   }, 30000);
-  if (!r.ok) { console.error('models list failed:', r.status, await r.text().catch(()=> '')); return null; }
+  if (!r.ok) { console.error('models list failed:', r.status, await r.text().catch(()=> '')); return []; }
   const data = await r.json();
-  const usable = (data.models || [])
+  return (data.models || [])
     .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
     .map(m => (m.name || '').replace(/^models\//, ''))
     .filter(Boolean);
+}
+
+// Ask Google which models this key can use, then pick a fast (flash) one.
+// Avoids hard-coding a model name that may be retired for new users.
+async function resolveGeminiModel(apiKey) {
+  const usable = await listGeminiModels(apiKey);
   return usable.find(n => /flash-latest/i.test(n))
     || usable.find(n => /flash/i.test(n) && !/(exp|preview|thinking|vision|lite|image|tts|audio)/i.test(n))
     || usable.find(n => /flash/i.test(n))
@@ -1065,7 +1082,7 @@ Lay the shapes out across the grid so they read as one scene that metaphorically
 
     console.log('gemini model:', model);
     setStatus('generating...', '#888');
-    let response = await geminiCall(apiKey, model, requestBody);
+    let response = await geminiCallWithRetry(apiKey, model, requestBody);
 
     // Cached model retired / not available? Re-discover once and retry.
     if (response.status === 404) {
@@ -1073,13 +1090,28 @@ Lay the shapes out across the grid so they read as one scene that metaphorically
       const fresh = await resolveGeminiModel(apiKey);
       if (fresh) {
         try { localStorage.setItem(GEMINI_MODEL_STORAGE, fresh); } catch {}
-        response = await geminiCall(apiKey, fresh, requestBody);
+        response = await geminiCallWithRetry(apiKey, fresh, requestBody);
+      }
+    }
+
+    // Still overloaded? Try other flash models, without replacing the saved one.
+    if (response.status === 503) {
+      setStatus('gemini is busy, trying another model...', '#888');
+      const others = (await listGeminiModels(apiKey))
+        .filter(n => n !== model && /flash/i.test(n) && !/(image|tts|audio|vision|live)/i.test(n))
+        .slice(0, 3);
+      for (const other of others) {
+        const r = await geminiCall(apiKey, other, requestBody);
+        if (r.ok) { console.log('gemini fallback model:', other); response = r; break; }
       }
     }
 
     if (!response.ok) {
       const errorText = await response.text();
-      setStatus(`error: API ${response.status}: ${errorText.slice(0, 120)}`, '#c66');
+      const message = response.status === 503
+        ? 'error: gemini is overloaded, try again in a minute'
+        : `error: API ${response.status}: ${errorText.slice(0, 120)}`;
+      setStatus(message, '#c66');
       console.error('API error:', response.status, errorText);
       return;
     }
