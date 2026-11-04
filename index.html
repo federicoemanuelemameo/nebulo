@@ -24,7 +24,7 @@
 
   #app {
     width: 100%;
-    max-width: 560px;
+    max-width: 820px;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -40,11 +40,22 @@
     gap: 32px;
   }
 
-  #input-panel {
+  #input-panel,
+  #description-panel {
     width: 220px;
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+
+  #description-text {
+    color: #fff;
+    line-height: 1.5;
+  }
+
+  #description-text:empty::before {
+    content: 'generate an illustration to see what it shows';
+    color: #555;
   }
 
   #title-block {
@@ -310,6 +321,11 @@
     <div id="status-line">0 cells active · 0 in bounds</div>
   </div>
 
+  <aside id="description-panel">
+    <div class="panel-label">DESCRIPTION</div>
+    <div id="description-text"></div>
+  </aside>
+
   <aside id="input-panel">
     <div class="panel-label">INPUTS</div>
     <div>
@@ -405,6 +421,7 @@ const btnSave       = document.getElementById('btn-save');
 const gifBgColor    = document.getElementById('gif-bg-color');
 const galleryEl     = document.getElementById('gallery');
 const galleryEmpty  = document.getElementById('gallery-empty');
+const descriptionEl = document.getElementById('description-text');
 const statusLine    = document.getElementById('status-line');
 const referenceGrid = document.getElementById('reference-grid');
 
@@ -499,6 +516,7 @@ svg.addEventListener('mousedown', e => {
   if (!isCellFullyInsideScreen(row, col)) return;
   paintState = e.shiftKey ? false : !cells[idx];
   cells[idx] = paintState;
+  setDescription('');  // edited by hand: the text no longer matches
   render();
   isDragging = true;
 });
@@ -540,7 +558,7 @@ window.addEventListener('mouseup',   () => { isDragging = false; });
 window.addEventListener('dragstart', e  => e.preventDefault());
 
 // ── Toolbar ───────────────────────────────────────────────────────────────────
-btnClear.addEventListener('click', () => { cells.fill(false); render(); });
+btnClear.addEventListener('click', () => { cells.fill(false); setDescription(''); render(); });
 
 btnToggleGrid.addEventListener('click', () => {
   gridVisible = !gridVisible;
@@ -689,7 +707,10 @@ function renderGallery() {
     name.className = 'saved-name';
     name.textContent = item.name || '(unnamed)';
     name.title = 'click to replay dot by dot';
-    name.addEventListener('click', () => playAnimation(item.cells));
+    name.addEventListener('click', () => {
+      setDescription(item.description);
+      playAnimation(item.cells);
+    });
 
     const gif = document.createElement('span');
     gif.className = 'saved-act';
@@ -947,7 +968,7 @@ btnSave.addEventListener('click', () => {
   }
   const list = loadSaved();
   const name = nextDefaultName(list);
-  list.push({ id: Date.now(), name, cells: active, createdAt: Date.now() });
+  list.push({ id: Date.now(), name, cells: active, description: descriptionEl.textContent, createdAt: Date.now() });
   persistSaved(list);
   renderGallery();
   setStatus(`saved as ${name} · ${active.length} cells`, '#fff');
@@ -1053,7 +1074,9 @@ Generate a pattern of active cells that forms a SINGLE coherent spatial illustra
 - Environment: ${environment}
 - Air quality: ${airQuality}
 
-Lay the shapes out across the grid so they read as one scene that metaphorically merges both inputs — not two separate icons side by side. Use rounded, organic shapes suited to a smooth dot-matrix display. Aim for 20-60 active cells. Only use indices from the valid list.`;
+Lay the shapes out across the grid so they read as one scene that metaphorically merges both inputs — not two separate icons side by side. Use rounded, organic shapes suited to a smooth dot-matrix display. Aim for 20-60 active cells. Only use indices from the valid list.
+
+Also write a description: one or two short sentences (max 30 words) saying what the illustration shows and how its shapes express the environment and the air quality. Write it in the same language as the inputs above.`;
 
   const requestBody = {
     contents: [{ parts: [{ text: promptText }] }],
@@ -1064,9 +1087,10 @@ Lay the shapes out across the grid so they read as one scene that metaphorically
       responseSchema: {
         type: "OBJECT",
         properties: {
-          cells: { type: "ARRAY", items: { type: "INTEGER" } }
+          cells: { type: "ARRAY", items: { type: "INTEGER" } },
+          description: { type: "STRING" }
         },
-        required: ["cells"]
+        required: ["cells", "description"]
       }
     }
   };
@@ -1150,6 +1174,7 @@ Lay the shapes out across the grid so they read as one scene that metaphorically
       }
     }
 
+    setDescription(parsed.description);
     render();
     setStatus(`done · ${activeCount} cells active`, '#fff');
 
@@ -1160,6 +1185,10 @@ Lay the shapes out across the grid so they read as one scene that metaphorically
       : err.message;
     setStatus(`error: ${msg}`, '#c66');
   }
+}
+
+function setDescription(text) {
+  descriptionEl.textContent = text || '';
 }
 
 function setStatus(text, color) {
